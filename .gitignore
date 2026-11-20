@@ -1,0 +1,6 @@
+/target/
+**/*.rs.bk
+Cargo.lock
+
+assets/roms/*.nes
+!assets/roms/.gitkeep
