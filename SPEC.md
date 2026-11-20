@@ -6,7 +6,7 @@ A native Linux desktop application built from scratch in Rust targeting Ubuntu s
 
 ### Key Targets
 
-- **Target Platform:** Linux x86_64 (Ubuntu 20.04/22.04/24.04/25.04/26.04 LTS native ELF)
+- **Target Platform:** Linux x86_64 (Ubuntu 20.04/22.04/24.04/25.04/26.05 LTS native ELF)
 - **Primary Framework:** `macroquad` (v0.4)
 - **Target Memory Usage:** $\le 45\text{ MB}$ RSS across all scenes
 - **Target CPU Usage:** $\le 5\%$ on contemporary dual-core x86_64 CPUs
@@ -53,11 +53,13 @@ pub enum SceneId {
 
 ```text
 retro-arcade/
+├── .gitignore               # Excludes build target & proprietary ROMs
 ├── Cargo.toml
 ├── SPEC.md
 ├── assets/
 │   ├── roms/
-│   │   └── mario.nes        # Super Mario Bros ROM (Mapper 0 / NROM)
+│   │   ├── .gitkeep
+│   │   └── mario.nes        # Super Mario Bros ROM (Ignored by Git)
 │   ├── fonts/
 │   └── sfx/
 ├── src/
@@ -100,8 +102,6 @@ retro-arcade/
   - `Enter` / `Space`: Launch the selected game.
   - `Q` or `Escape`: Quit application cleanly.
 
----
-
 ### 4.2 Game 1: Tetris (`src/games/tetris/`)
 
 - **Playfield Matrix:** 10 visible columns $\times$ 20 visible rows, plus 2 hidden buffer rows above.
@@ -110,7 +110,7 @@ retro-arcade/
 - **SRS (Super Rotation System):**
   - Clockwise and Counter-Clockwise rotation.
   - Official SRS wall-kick offset tables for standard pieces and I-piece.
-- **Controls & Mechanics:**
+- **Mechanics:**
   - `Left` / `Right`: Shift piece horizontally.
   - `Up` / `X`: Rotate Clockwise.
   - `Z` / `Control`: Rotate Counter-Clockwise.
@@ -120,8 +120,6 @@ retro-arcade/
   - Ghost piece display indicating exact drop landing coordinate.
   - Line clear detection with standard scoring (Single, Double, Triple, Tetris).
   - Progressive gravity speed curve per 10 lines cleared.
-
----
 
 ### 4.3 Game 2: Snake with Modifiers (`src/games/snake/`)
 
@@ -139,8 +137,6 @@ retro-arcade/
     - `Golden Apple`: Spawns with a 7-second countdown (+3 length, +50 points).
     - `Chili Pepper`: Speeds up game tick by $1.8\times$ for 5 seconds.
 - **Anti-Reversal Input Buffer:** Keypress queue that prevents instant 180-degree self-collision when pressing two directions in rapid succession.
-
----
 
 ### 4.4 Game 3: Super Mario Bros via Headless NES Core (`src/games/mario/`)
 
@@ -197,6 +193,160 @@ strip = true
 
 ---
 
+## 6. Phased Antigravity Prompts
+
+### Phase 1: Hub Skeleton & Scene Router
+
+```text
+Role: Rust Systems and Game Engine Developer.
+Task: Scaffold the "retro-arcade" project based on SPEC.md.
+
+Directives:
+1. Initialize Cargo.toml with macroquad 0.4 and release profile optimizations.
+2. Implement src/core/scene.rs with the `GameScene` trait, `SceneAction`, and `SceneId` enums.
+3. Implement src/ui/menu.rs as an interactive arcade selection menu with keyboard navigation.
+4. Implement src/main.rs: Set 960x720 window, maintain active scene state, handle transitions, and ensure 'Escape' returns to menu.
+5. Create temporary placeholder scenes for Tetris, Snake, and Mario that compile cleanly.
+6. Verify compilation with `cargo check`.
 ```
 
+### Phase 2: Tetris Implementation
+
+```text
+Task: Implement the complete Tetris module under src/games/tetris/ according to SPEC.md.
+
+Directives:
+1. Implement piece.rs: 7 Tetromino types, 4x4 coordinate grids, distinct colors, and a 7-bag randomizer.
+2. Implement srs.rs: Official SRS rotation rules with wall-kick translation lookup tables.
+3. Implement board.rs: 10x20 matrix, collision detection, line clear logic, and gravity timer.
+4. Implement mod.rs: TetrisScene implementing GameScene. Include Ghost piece preview, Soft/Hard drop, Hold slot, and HUD (Score, Level, Lines, Next).
+5. Verify zero runtime heap allocations during gameplay with `cargo check`.
+```
+
+### Phase 3: Snake with Google-Style Modifiers
+
+```text
+Task: Implement the Snake module under src/games/snake/ according to SPEC.md.
+
+Directives:
+1. Implement modes.rs: Struct for active game modifiers (WallMode: Classic vs Portal, Special items toggle).
+2. Implement entity.rs: Snake body queue (VecDeque), fruit spawning, and movement anti-reversal buffer.
+3. Implement special fruits: Red (+1), Golden Apple (timer, +3), Chili Pepper (speed boost).
+4. Implement mod.rs: SnakeScene implementing GameScene. Include a pre-game modifier selection screen before starting.
+5. Verify build with `cargo check`.
+```
+
+### Phase 4: Headless NES Core & Super Mario Bros
+
+```text
+Task: Implement the embedded headless NES emulator core under src/games/mario/ according to SPEC.md.
+
+Directives:
+1. Implement cartridge.rs: Parse iNES format, extract PRG-ROM (16KB/32KB) and CHR-ROM (8KB), supporting Mapper 0 (NROM).
+2. Implement cpu.rs: Ricoh 2A03 (MOS 6502 without BCD mode) with all official opcodes needed for SMB.
+3. Implement ppu.rs: Emulate PPU registers $2000-$2007, background tile rendering, OAM sprites, and output to a `[u8; 256 * 240 * 4]` RGBA framebuffer.
+4. Implement joypad.rs: Map keyboard controls to shift register $4016.
+5. Implement mod.rs: MarioScene implementing GameScene. Check for assets/roms/mario.nes (show graceful fallback if missing). Update a Macroquad Texture2D each frame and render at 4:3 ratio.
+6. Verify with `cargo run`.
+```
+
+---
+
+## 7. Version Control & Git Workflow
+
+### 7.1 `.gitignore` Specification
+
+Create a `.gitignore` file at the repository root immediately. **Crucial:** Never commit proprietary game ROMs (`*.nes`) to a public repository to avoid DMCA/copyright strikes.
+
+```gitignore
+# Rust build artifacts
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# IDE & Editor configs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Binary Assets & Proprietary ROMs
+assets/roms/*.nes
+!assets/roms/.gitkeep
+
+# Operating System specific
+.DS_Store
+Thumbs.db
+```
+
+### 7.2 Initial Repository Setup
+
+Run these commands in Ubuntu terminal inside the project root:
+
+```bash
+# Inisialisasi Git repository
+git init -b main
+
+# Buat placeholder agar folder assets/roms tetap terdeteksi oleh Git
+mkdir -p assets/roms assets/fonts assets/sfx
+touch assets/roms/.gitkeep
+
+# Stage file awal (SPEC.md, Cargo.toml, .gitignore)
+git add .gitignore SPEC.md Cargo.toml assets/roms/.gitkeep
+
+# Commit perdana
+git commit -m "chore: initial project blueprint and specifications"
+
+# Hubungkan ke remote GitHub / GitLab (ganti URL dengan repository kamu)
+git remote add origin git@github.com:USERNAME/retro-arcade.git
+# atau jika menggunakan HTTPS:
+# git remote add origin https://github.com/USERNAME/retro-arcade.git
+
+# Push cabang utama
+git push -u origin main
+```
+
+### 7.3 Phased Commit Strategy (Conventional Commits)
+
+Lakukan commit terpisah setiap kali satu fase Antigravity berhasil dikompilasi (`cargo check` atau `cargo run` sukses):
+
+#### Setelah Fase 1 Selesai:
+
+```bash
+git add src/core/ src/ui/ src/main.rs Cargo.toml
+git commit -m "feat(core): scaffold scene manager and launcher menu"
+git push
+```
+
+#### Setelah Fase 2 Selesai:
+
+```bash
+git add src/games/tetris/
+git commit -m "feat(tetris): implement full SRS rotation, 7-bag, and board mechanics"
+git push
+```
+
+#### Setelah Fase 3 Selesai:
+
+```bash
+git add src/games/snake/
+git commit -m "feat(snake): add Google-style modifiers, special fruits, and portal mode"
+git push
+```
+
+#### Setelah Fase 4 Selesai:
+
+```bash
+git add src/games/mario/
+git commit -m "feat(mario): implement headless NES emulator core and NROM mapper"
+git push
+```
+
+### 7.4 Release Tagging
+
+Ketika semua game sudah stabil dan siap dijalankan:
+
+```bash
+git tag -a v1.0.0 -m "Release v1.0.0: Native Linux Retro Arcade Hub"
+git push origin v1.0.0
 ```
